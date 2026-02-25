@@ -14,11 +14,12 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # Using a pre-built Action environment specifically designed for Buildozer
-      # This skips all the manual apt-get and Python dependency errors on standard Ubuntu latest
+      # Define the explicit user to bypass the "chown invalid user" bug in the docker action
       - name: Build with Buildozer
         uses: ArtemSBulgakov/buildozer-action@v1
         id: buildozer
+        env:
+          USER: root
         with:
           command: buildozer android debug
           buildozer_version: master
