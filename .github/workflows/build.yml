@@ -7,25 +7,39 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-android:
-    runs-on: ubuntu-latest
-    
+  build:
+    runs-on: ubuntu-22.04  # Reverting slightly to avoid the forced PEP 668 on 24.04
+
     steps:
-      - name: Checkout Code
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      # Define the explicit user to bypass the "chown invalid user" bug in the docker action
-      - name: Build with Buildozer
-        uses: ArtemSBulgakov/buildozer-action@v1
-        id: buildozer
-        env:
-          USER: root
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          command: buildozer android debug
-          buildozer_version: master
+          python-version: '3.10'
 
-      - name: Upload APK Artifact
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libltdl-dev libffi-dev libssl-dev python3-setuptools libpython3-dev zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake openjdk-17-jdk openjdk-17-jre
+
+      - name: Install Buildozer via pipx (to bypass PEP 668)
+        run: |
+          pipx install buildozer
+          pipx install cython
+
+      - name: Ensure yolov8 weights
+        run: |
+          if [ ! -f "yolov8n.pt" ]; then wget https://github.com/ultralytics/assets/releases/download/v8.4.0/yolov8n.pt; fi
+
+      - name: Build with Buildozer
+        run: |
+          sed -i.bak "s/#p4a.jobs = 1/p4a.jobs = 2/g" buildozer.spec
+          yes | buildozer -v android debug
+
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: package
-          path: ${{ steps.buildozer.outputs.filename }}
+          name: Android-APK
+          path: bin/*.apk
